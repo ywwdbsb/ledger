@@ -220,3 +220,4 @@ class Ledger:
                         self.__quit()
                     case _:
                         print("输入有误,请重试")
+            print()
