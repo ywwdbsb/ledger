@@ -2,6 +2,11 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
+
+import utils
+
+DATA_FILE = Path(__file__).with_name("ledger_data.json")
 
 
 @dataclass
@@ -122,7 +127,7 @@ class Ledger:
             if user is not None:
                 while True:
                     password = input("请输入用户密码:")
-                    if user.password == password:
+                    if utils.verify_password(password, user.password):
                         self.now_user = user
                         print(f"欢迎回来,{user.name}")
                         return
@@ -137,7 +142,8 @@ class Ledger:
 
     def __create_(self, name: str):
         password = input("请输入用户密码:")
-        new_user = User(name, password)
+        password_hash = utils.hash_password(password)
+        new_user = User(name, password_hash)
         self.users.append(new_user)
         self.now_user = new_user
         print(f"欢迎,{new_user.name}")
@@ -164,19 +170,19 @@ class Ledger:
 
     def __save(self):
         data = [asdict(user) for user in self.users]
-        with open("ledger_data.json", "w", encoding="utf-8") as file:
+        with open(DATA_FILE, "w", encoding="utf-8") as file:
             json.dump(data, file, ensure_ascii=False, indent=4, default=str)
 
     def __load(self):
         try:
-            with open("ledger_data.json", encoding="utf-8") as file:
+            with open(DATA_FILE, encoding="utf-8") as file:
                 data = json.load(file)
                 self.users = [User.from_dict(user) for user in data]
         except FileNotFoundError:
             print("欢迎首次使用")
         except json.JSONDecodeError:
             print("警告:json已损坏,无法读取")
-        except ValueError, KeyError:
+        except (ValueError, KeyError):
             print("警告:json数据缺失或格式错误,部分数据可能无法读取")
 
     def start(self):
@@ -214,8 +220,3 @@ class Ledger:
                         self.__quit()
                     case _:
                         print("输入有误,请重试")
-
-
-if __name__ == "__main__":
-    ledger = Ledger()
-    ledger.start()
