@@ -8,10 +8,15 @@ from decimal import Decimal, InvalidOperation
 class Record:
     amount: Decimal
     doc: str
-    id: int | None = field(default=None)
     created_at: str = field(
         default_factory=lambda: datetime.now().strftime("%Y %m %d %H:%M:%S"), init=False
     )
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        record = cls(Decimal(data["amount"]), data["doc"])
+        record.created_at = data["created_at"]
+        return record
 
 
 @dataclass
@@ -19,43 +24,23 @@ class User:
     name: str
     password: str
     balance: Decimal = field(default_factory=Decimal, init=False)
-    next_id: int = field(default=1, init=False)
     records: list[Record] = field(default_factory=list, init=False)
 
-    def add_record(self):
-        while True:
-            try:
-                amount = Decimal(input("请输入金额:"))
-                break
-            except InvalidOperation:
-                print("请输入有效数字")
-        doc = input("请输入说明:")
+    @classmethod
+    def from_dict(cls, data: dict):
+        user = cls(data["name"], data["password"])
+        user.balance = Decimal(data["balance"])
+        user.records = [Record.from_dict(record) for record in data["records"]]
+        return user
+
+    def add_record(self, amount: Decimal, doc: str):
         record = Record(amount, doc)
-        record.id = self.next_id
-        self.next_id += 1
         self.records.append(record)
         self.balance += amount
-        print("添加成功")
 
-    def remove_record(self):
-        while True:
-            try:
-                id_ = int(input("请输入id:"))
-            except ValueError:
-                print("id必须为正整数")
-                continue
-            for record in self.records:
-                if record.id == id_:
-                    self.records.remove(record)
-                    self.balance -= record.amount
-                    print("删除成功")
-                    return
-            print("没有这个id,请重试")
-
-    def print_info(self):
-        for record in self.records:
-            print(record)
-        print(f"余额:{self.balance}")
+    def remove_record(self, index: int):
+        record = self.records.pop(index - 1)
+        self.balance -= record.amount
 
 
 @dataclass
@@ -71,19 +56,21 @@ class Ledger:
             if user.name == name:
                 return user
 
-    def __interface(self):
-        if self.now_user is None:
-            print("1.登录用户", "2.新建用户", "3.删除用户", "4.退出", sep="\n")
-        else:
-            print(
-                "1.查看记录",
-                "2.增加记录",
-                "3.删除记录",
-                "4.保存记录",
-                "5.退出登录",
-                "6.退出",
-                sep="\n",
-            )
+    @staticmethod
+    def __login_page():
+        print("1.登录用户", "2.新建用户", "3.删除用户", "4.退出", sep="\n")
+
+    @staticmethod
+    def __user_page():
+        print(
+            "1.查看记录",
+            "2.增加记录",
+            "3.删除记录",
+            "4.保存记录",
+            "5.退出登录",
+            "6.退出",
+            sep="\n",
+        )
 
     def __quit(self):
         choice = input("是否退出?(Y/N):")
@@ -91,6 +78,42 @@ class Ledger:
             self._if_running = False
             print("拜拜")
             self.__save()
+
+    def __add_user_record(self):
+        while True:
+            try:
+                amount = Decimal(input("请输入金额:"))
+                break
+            except InvalidOperation:
+                print("请输入有效数字")
+        doc = input("请输入说明:")
+        if self.now_user is not None:
+            self.now_user.add_record(amount, doc)
+        print("添加成功")
+
+    def __remove_user_record(self):
+        while True:
+            try:
+                index = int(input("请输入序号:"))
+                if index <= 0:
+                    raise ValueError
+                if self.now_user is not None:
+                    self.now_user.remove_record(index)
+                print("删除成功")
+                break
+            except ValueError:
+                print("序号必须为正整数")
+            except IndexError:
+                print("没有这个序号,请重试")
+
+    def __print_info(self):
+        if self.now_user is not None:
+            enumeration = enumerate(self.now_user.records, start=1)
+            for index, record in enumeration:
+                print(
+                    f"{index} | {record.created_at} | {record.doc} | {record.amount:+.2f}"
+                )
+            print(f"余额:{self.now_user.balance:.2f}")
 
     def __login(self):
         while True:
@@ -148,18 +171,7 @@ class Ledger:
         try:
             with open("ledger_data.json", encoding="utf-8") as file:
                 data = json.load(file)
-                for user in data:
-                    records = []
-                    for record in user["records"]:
-                        record_res = Record(Decimal(record["amount"]), record["doc"])
-                        record_res.id = record["id"]
-                        record_res.created_at = record["created_at"]
-                        records.append(record_res)
-                    user_res = User(user["name"], user["password"])
-                    user_res.balance = Decimal(user["balance"])
-                    user_res.next_id = user.get("next_id", 1)
-                    user_res.records = records
-                    self.users.append(user_res)
+                self.users = [User.from_dict(user) for user in data]
         except FileNotFoundError:
             print("欢迎首次使用")
         except json.JSONDecodeError:
@@ -170,9 +182,9 @@ class Ledger:
     def start(self):
         self.__load()
         while self._if_running:
-            self.__interface()
-            choice = input()
             if self.now_user is None:
+                self.__login_page()
+                choice = input()
                 match choice:
                     case "1":
                         self.__login()
@@ -185,13 +197,15 @@ class Ledger:
                     case _:
                         print("输入有误,请重试")
             else:
+                self.__user_page()
+                choice = input()
                 match choice:
                     case "1":
-                        self.now_user.print_info()
+                        self.__print_info()
                     case "2":
-                        self.now_user.add_record()
+                        self.__add_user_record()
                     case "3":
-                        self.now_user.remove_record()
+                        self.__remove_user_record()
                     case "4":
                         self.__save()
                     case "5":
