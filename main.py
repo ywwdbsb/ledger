@@ -1,3 +1,5 @@
+"""程序入口"""
+
 import ledger
 
 

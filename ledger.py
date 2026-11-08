@@ -1,4 +1,8 @@
+"""程序主体"""
+
 import json
+import os
+import stat
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -6,15 +10,20 @@ from pathlib import Path
 
 import utils
 
+# 适用 pathlib 获取绝对路径
+# 并将文件名替换 确保 ledger_data.json 在同级目录
 DATA_FILE = Path(__file__).with_name("ledger_data.json")
 
 
 @dataclass
 class Record:
-    amount: Decimal
+    """单次记录 包含金额 说明文档和时间"""
+
+    amount: Decimal  # 使用 Decimal
     doc: str
     created_at: str = field(
-        default_factory=lambda: datetime.now().strftime("%Y %m %d %H:%M:%S"), init=False
+        default_factory=lambda: datetime.now().strftime("%Y %m %d %H:%M:%S"),
+        init=False,
     )
 
     @classmethod
@@ -26,8 +35,12 @@ class Record:
 
 @dataclass
 class User:
+    """用户对象 每个用户拥有不同的记录"""
+
     name: str
     password: str
+
+    # 这里也是 Decimal
     balance: Decimal = field(default_factory=Decimal, init=False)
     records: list[Record] = field(default_factory=list, init=False)
 
@@ -50,6 +63,8 @@ class User:
 
 @dataclass
 class Ledger:
+    """记账本 拥有不同用户"""
+
     now_user: User | None = field(default=None, init=False)
     users: list[User] = field(default_factory=list, init=False)
 
@@ -63,7 +78,13 @@ class Ledger:
 
     @staticmethod
     def __login_page():
-        print("1.登录用户", "2.新建用户", "3.删除用户", "4.退出", sep="\n")
+        print(
+            "1.登录用户",
+            "2.新建用户",
+            "3.删除用户",
+            "0.退出",
+            sep="\n",
+        )
 
     @staticmethod
     def __user_page():
@@ -73,7 +94,7 @@ class Ledger:
             "3.删除记录",
             "4.保存记录",
             "5.退出登录",
-            "6.退出",
+            "0.退出",
             sep="\n",
         )
 
@@ -169,9 +190,21 @@ class Ledger:
                 print("该用户不存在,请重试")
 
     def __save(self):
-        data = [asdict(user) for user in self.users]
-        with open(DATA_FILE, "w", encoding="utf-8") as file:
-            json.dump(data, file, ensure_ascii=False, indent=4, default=str)
+        try:
+            # 解除文件只读
+            if os.path.exists(DATA_FILE):
+                os.chmod(DATA_FILE, stat.S_IWRITE)
+
+            data = [asdict(user) for user in self.users]
+            with open(DATA_FILE, "w", encoding="utf-8") as file:
+                json.dump(data, file, ensure_ascii=False, indent=4, default=str)
+
+            # 写入后立即恢复文件只读
+            os.chmod(DATA_FILE, stat.S_IREAD)
+        except PermissionError:
+            print("无法保存文件,可能被其他程序占用,请退出重试")
+        except OSError as error:
+            print(f"保存失败,{error}")
 
     def __load(self):
         try:
@@ -190,7 +223,7 @@ class Ledger:
         while self._if_running:
             if self.now_user is None:
                 self.__login_page()
-                choice = input()
+                choice = input("请输入选择:")
                 match choice:
                     case "1":
                         self.__login()
@@ -198,13 +231,13 @@ class Ledger:
                         self.__create()
                     case "3":
                         self.__remove()
-                    case "4":
+                    case "0":
                         self.__quit()
                     case _:
                         print("输入有误,请重试")
             else:
                 self.__user_page()
-                choice = input()
+                choice = input("请输入选择:")
                 match choice:
                     case "1":
                         self.__print_info()
@@ -216,8 +249,8 @@ class Ledger:
                         self.__save()
                     case "5":
                         self.now_user = None
-                    case "6":
+                    case "0":
                         self.__quit()
                     case _:
                         print("输入有误,请重试")
-            print()
+            print()  # 细节空行 更好看
