@@ -139,10 +139,11 @@ class Ledger:
         while True:
             try:
                 index = int(input("请输入序号:"))
-                if index <= 0:
-                    raise ValueError
                 if self.now_user is None:
                     break
+                if index <= 0 or index > len(self.now_user.records):
+                    print("没有这个序号,请重试")
+                    continue
                 if self.__confirm("确认删除?(Y/N):"):
                     self.now_user.remove_record(index)
                     print("删除成功")
@@ -150,9 +151,7 @@ class Ledger:
                 else:
                     print("已取消删除")
             except ValueError:
-                print("序号必须为正整数")
-            except IndexError:
-                print("没有这个序号,请重试")
+                print("请输入数字")
 
     def __print_info(self):
         if self.now_user is not None:
@@ -168,9 +167,7 @@ class Ledger:
             name = input("请输入用户名:")
             user = self.__get_user(name)
             if user is None:
-                print("没有这个用户,是否新建?")
-                user_input = input("(Y/N):")
-                if user_input.lower() == "y":
+                if self.__confirm("没有这个用户,是否新建?(Y/N):"):
                     self.__create_(name)
                     break
                 else:
@@ -179,7 +176,7 @@ class Ledger:
                 self.now_user = user
                 print(f"欢迎回来,{user.name}")
                 break
-            print("你已被禁止登录")
+            print("密码错误,已退回主界面")
             continue
 
     def __create_(self, name: str):
@@ -233,10 +230,8 @@ class Ledger:
             print(f"保存到 {DATA_FILE.name} 失败:{error}")
         else:
             print(f"成功保存到 {DATA_FILE.name}")
-        finally:
-            if DATA_FILE.exists():
-                # 写入后立即恢复文件只读
-                DATA_FILE.chmod(stat.S_IREAD)
+            # 写入后立即恢复文件只读
+            DATA_FILE.chmod(stat.S_IREAD)
 
     def __load(self):
         try:
