@@ -1,7 +1,6 @@
 """程序主体"""
 
 import json
-import os
 import stat
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -77,6 +76,26 @@ class Ledger:
                 return user
 
     @staticmethod
+    def __if_password_correct(user: User) -> bool:
+        times = 3
+        while times > 0:
+            password = input("请输入用户密码:")
+            if utils.verify_password(password, user.password):
+                return True
+            times -= 1
+            print(
+                "密码不正确,请重试",
+                f"还剩{times}次机会",
+                sep="\n",
+            )
+        return False
+
+    @staticmethod
+    def __confirm(prompt: str) -> bool:
+        choice = input(prompt)
+        return choice.lower() == "y"
+
+    @staticmethod
     def __login_page():
         print(
             "1.登录用户",
@@ -99,8 +118,7 @@ class Ledger:
         )
 
     def __quit(self):
-        choice = input("是否退出?(Y/N):")
-        if choice.lower() == "y":
+        if self.__confirm("是否退出?(Y/N):"):
             self._if_running = False
             print("拜拜")
             self.__save()
@@ -115,7 +133,7 @@ class Ledger:
         doc = input("请输入说明:")
         if self.now_user is not None:
             self.now_user.add_record(amount, doc)
-        print("添加成功")
+            print("添加成功")
 
     def __remove_user_record(self):
         while True:
@@ -123,10 +141,14 @@ class Ledger:
                 index = int(input("请输入序号:"))
                 if index <= 0:
                     raise ValueError
-                if self.now_user is not None:
+                if self.now_user is None:
+                    break
+                if self.__confirm("确认删除?(Y/N):"):
                     self.now_user.remove_record(index)
-                print("删除成功")
-                break
+                    print("删除成功")
+                    break
+                else:
+                    print("已取消删除")
             except ValueError:
                 print("序号必须为正整数")
             except IndexError:
@@ -145,21 +167,20 @@ class Ledger:
         while True:
             name = input("请输入用户名:")
             user = self.__get_user(name)
-            if user is not None:
-                while True:
-                    password = input("请输入用户密码:")
-                    if utils.verify_password(password, user.password):
-                        self.now_user = user
-                        print(f"欢迎回来,{user.name}")
-                        return
-                    else:
-                        print("密码不正确,请重试")
-            else:
+            if user is None:
                 print("没有这个用户,是否新建?")
                 user_input = input("(Y/N):")
                 if user_input.lower() == "y":
                     self.__create_(name)
-                    return
+                    break
+                else:
+                    continue
+            if self.__if_password_correct(user):
+                self.now_user = user
+                print(f"欢迎回来,{user.name}")
+                break
+            print("你已被禁止登录")
+            continue
 
     def __create_(self, name: str):
         password = input("请输入用户密码:")
@@ -183,28 +204,39 @@ class Ledger:
         while True:
             name = input("请输入用户名:")
             user = self.__get_user(name)
-            if user is not None:
-                self.users.remove(user)
-                break
-            else:
+            if user is None:
                 print("该用户不存在,请重试")
+                continue
+            if not self.__if_password_correct(user):
+                print("你无权删除该用户")
+                break
+            if self.__confirm("确认删除?(Y/N):"):
+                self.users.remove(user)
+                print("删除成功")
+            else:
+                print("已取消删除")
+            break
 
     def __save(self):
         try:
             # 解除文件只读
-            if os.path.exists(DATA_FILE):
-                os.chmod(DATA_FILE, stat.S_IWRITE)
+            if DATA_FILE.exists():
+                DATA_FILE.chmod(stat.S_IWRITE | stat.S_IREAD)
 
             data = [asdict(user) for user in self.users]
             with open(DATA_FILE, "w", encoding="utf-8") as file:
                 json.dump(data, file, ensure_ascii=False, indent=4, default=str)
 
-            # 写入后立即恢复文件只读
-            os.chmod(DATA_FILE, stat.S_IREAD)
         except PermissionError:
-            print("无法保存文件,可能被其他程序占用,请退出重试")
+            print(f"无法保存到 {DATA_FILE.name} ,可能被其他程序占用,请退出重试")
         except OSError as error:
-            print(f"保存失败,{error}")
+            print(f"保存到 {DATA_FILE.name} 失败:{error}")
+        else:
+            print(f"成功保存到 {DATA_FILE.name}")
+        finally:
+            if DATA_FILE.exists():
+                # 写入后立即恢复文件只读
+                DATA_FILE.chmod(stat.S_IREAD)
 
     def __load(self):
         try:
@@ -214,9 +246,11 @@ class Ledger:
         except FileNotFoundError:
             print("欢迎首次使用")
         except json.JSONDecodeError:
-            print("警告:json已损坏,无法读取")
-        except (ValueError, KeyError):
-            print("警告:json数据缺失或格式错误,部分数据可能无法读取")
+            print(f"警告: {DATA_FILE.name} 已损坏,无法读取")
+        except (ValueError, KeyError, InvalidOperation):
+            print(f"警告: {DATA_FILE.name} 数据缺失或格式错误,部分数据可能无法读取")
+        else:
+            print(f"成功从 {DATA_FILE.name} 中读取数据")
 
     def start(self):
         self.__load()

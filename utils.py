@@ -19,7 +19,7 @@ def hash_password(password: str) -> str:
         100_000,  # 细节搅拌十万次 拉长时间
     )
 
-    return f"{salt.hex}${password_hash.hex}"
+    return f"{salt.hex()}${password_hash.hex()}"
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
@@ -39,5 +39,5 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
         # 细节安全比对 防止时序攻击
         return compare_digest(new_hash.hex(), hash_hex)
-    except ValueError:
+    except (ValueError, AttributeError):
         return False
