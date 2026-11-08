@@ -1,4 +1,5 @@
 ledger_data.json
-settings.json
+.vscode/
+.venv/
 __pycache__/
 *.pyc
