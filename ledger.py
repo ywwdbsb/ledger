@@ -177,7 +177,6 @@ class Ledger:
                 print(f"欢迎回来,{user.name}")
                 break
             print("密码错误,已退回主界面")
-            continue
 
     def __create_(self, name: str):
         password = input("请输入用户密码:")
