@@ -1,7 +1,6 @@
 """程序主体"""
 
 import json
-import stat
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -21,7 +20,7 @@ class Record:
     amount: Decimal  # 使用 Decimal
     doc: str
     created_at: str = field(
-        default_factory=lambda: datetime.now().strftime("%Y %m %d %H:%M:%S"),
+        default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         init=False,
     )
 
@@ -66,9 +65,7 @@ class Ledger:
 
     now_user: User | None = field(default=None, init=False)
     users: list[User] = field(default_factory=list, init=False)
-
-    def __post_init__(self):
-        self._is_running = True
+    _is_running: bool = field(default=True, init=False)
 
     def __get_user(self, name: str) -> User | None:
         for user in self.users:
@@ -127,6 +124,9 @@ class Ledger:
         while True:
             try:
                 amount = Decimal(input("请输入金额:"))
+                if not amount.is_finite():
+                    print("金额必须是有限数字")
+                    continue
                 break
             except InvalidOperation:
                 print("请输入有效数字")
@@ -168,7 +168,7 @@ class Ledger:
             user = self.__get_user(name)
             if user is None:
                 if self.__confirm("没有这个用户,是否新建?(Y/N):"):
-                    self.__create_(name)
+                    self.__create_user(name)
                     break
                 else:
                     continue
@@ -178,8 +178,14 @@ class Ledger:
                 break
             print("密码错误,已退回主界面")
 
-    def __create_(self, name: str):
-        password = input("请输入用户密码:")
+    def __create_user(self, name: str):
+        while True:
+            password = input("请输入用户密码:")
+            second_password = input("请再次输入:")
+            if second_password != password:
+                print("两次密码不一致")
+            else:
+                break
         password_hash = utils.hash_password(password)
         new_user = User(name, password_hash)
         self.users.append(new_user)
@@ -191,7 +197,7 @@ class Ledger:
             name = input("请输入用户名:")
             user = self.__get_user(name)
             if user is None:
-                self.__create_(name)
+                self.__create_user(name)
                 break
             else:
                 print("该用户已存在,请重试")
@@ -215,22 +221,13 @@ class Ledger:
 
     def __save(self):
         try:
-            # 解除文件只读
-            if DATA_FILE.exists():
-                DATA_FILE.chmod(stat.S_IWRITE | stat.S_IREAD)
-
             data = [asdict(user) for user in self.users]
             with open(DATA_FILE, "w", encoding="utf-8") as file:
                 json.dump(data, file, ensure_ascii=False, indent=4, default=str)
-
         except PermissionError:
             print(f"无法保存到 {DATA_FILE.name} ,可能被其他程序占用,请退出重试")
         except OSError as error:
             print(f"保存到 {DATA_FILE.name} 失败:{error}")
-        else:
-            print(f"成功保存到 {DATA_FILE.name}")
-            # 写入后立即恢复文件只读
-            DATA_FILE.chmod(stat.S_IREAD)
 
     def __load(self):
         try:
