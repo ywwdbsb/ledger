@@ -68,7 +68,7 @@ class Ledger:
     users: list[User] = field(default_factory=list, init=False)
 
     def __post_init__(self):
-        self._if_running = True
+        self._is_running = True
 
     def __get_user(self, name: str) -> User | None:
         for user in self.users:
@@ -76,7 +76,7 @@ class Ledger:
                 return user
 
     @staticmethod
-    def __if_password_correct(user: User) -> bool:
+    def __is_password_correct(user: User) -> bool:
         times = 3
         while times > 0:
             password = input("请输入用户密码:")
@@ -119,7 +119,7 @@ class Ledger:
 
     def __quit(self):
         if self.__confirm("是否退出?(Y/N):"):
-            self._if_running = False
+            self._is_running = False
             print("拜拜")
             self.__save()
 
@@ -172,7 +172,7 @@ class Ledger:
                     break
                 else:
                     continue
-            if self.__if_password_correct(user):
+            if self.__is_password_correct(user):
                 self.now_user = user
                 print(f"欢迎回来,{user.name}")
                 break
@@ -203,7 +203,7 @@ class Ledger:
             if user is None:
                 print("该用户不存在,请重试")
                 continue
-            if not self.__if_password_correct(user):
+            if not self.__is_password_correct(user):
                 print("你无权删除该用户")
                 break
             if self.__confirm("确认删除?(Y/N):"):
@@ -248,7 +248,7 @@ class Ledger:
 
     def start(self):
         self.__load()
-        while self._if_running:
+        while self._is_running:
             if self.now_user is None:
                 self.__login_page()
                 choice = input("请输入选择:")
