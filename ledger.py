@@ -93,9 +93,9 @@ def _add_user_record():
 def _remove_user_record():
     while True:
         try:
-            index = int(input("请输入序号:"))
             if _now_user is None:
                 break
+            index = int(input("请输入序号:"))
             if index <= 0 or index > len(_now_user.records):
                 print("没有这个序号,请重试")
                 continue
@@ -115,7 +115,7 @@ def _print_info():
         enumeration = enumerate(_now_user.records, start=1)
         for index, record in enumeration:
             print(
-                f"{index} | {record.created_at} | {record.doc} | {record.amount:+.2f}"
+                f"{index} | {record.amount:+.2f} | {record.doc} | {record.created_at}"
             )
         print(f"余额:{_now_user.balance:.2f}")
 
@@ -185,6 +185,7 @@ def _remove():
 
 def save() -> bool:
     # 先写入临时文件中 再存入 json
+    # 不然写 json 时出错就炸了
     tmp = DATA_FILE.with_suffix(".json.tmp")
     try:
         data = [asdict(user) for user in _users]
@@ -217,6 +218,10 @@ def _load():
         print(f"警告: {DATA_FILE.name} 已损坏,无法读取")
         return
 
+    if not isinstance(data, list):
+        print(f"警告: {DATA_FILE.name} 类型错误,无法读取")
+        return
+
     _users = []
     failed_times = 0
     for user_data in data:
@@ -225,12 +230,15 @@ def _load():
             _users.append(user)
         except (ValueError, KeyError, InvalidOperation, TypeError) as error:
             print(
-                f"警告:{DATA_FILE.name} 数据缺失或格式错误:{error},部分数据可能无法读取"
+                f"警告: {DATA_FILE.name} 数据缺失或格式错误:{error},部分数据可能无法读取"
             )
             failed_times += 1
 
     if failed_times:
-        print(f"警告:{DATA_FILE.name}中共{failed_times}条数据损坏,无法读取")
+        print(f"警告: {DATA_FILE.name}中共{failed_times}条数据损坏,无法读取")
+        backup = DATA_FILE.with_suffix(".corrupted.json")
+        DATA_FILE.replace(backup)
+        print(f"损坏数据已备份至{backup.name}")
     else:
         print(f"成功从{DATA_FILE.name}中读取{len(_users)}条数据")
 
@@ -245,6 +253,7 @@ def start():
             match choice:
                 case "1":
                     _login()
+                    save()
                 case "2":
                     _create()
                     save()

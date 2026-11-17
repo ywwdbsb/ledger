@@ -39,5 +39,5 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
         # 细节安全比对 防止时序攻击
         return compare_digest(new_hash.hex(), hash_hex)
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError):
         return False
