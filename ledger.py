@@ -16,7 +16,7 @@ DATA_FILE = Path(__file__).resolve().with_name("data.json")
 
 class Ledger:
     def __init__(self) -> None:
-        self._now_user: User | None = None
+        self._current_user: User | None = None
         self._users: list[User] = []
         self._is_running: bool = True
 
@@ -87,21 +87,21 @@ class Ledger:
             except InvalidOperation:
                 print("请输入有效数字")
         doc = input("请输入说明:")
-        if self._now_user is not None:
-            self._now_user.add_record(amount, doc)
+        if self._current_user is not None:
+            self._current_user.add_record(amount, doc)
             print("添加成功")
 
     def _remove_user_record(self):
         while True:
             try:
-                if self._now_user is None:
+                if self._current_user is None:
                     break
                 index = int(input("请输入序号:"))
-                if index <= 0 or index > len(self._now_user.records):
+                if index <= 0 or index > len(self._current_user.records):
                     print("没有这个序号,请重试")
                     continue
                 if self._confirm("确认删除?(Y/N):"):
-                    self._now_user.remove_record(index)
+                    self._current_user.remove_record(index)
                     print("删除成功")
                     break
                 else:
@@ -111,13 +111,13 @@ class Ledger:
                 print("请输入数字")
 
     def _print_info(self):
-        if self._now_user is not None:
-            enumeration = enumerate(self._now_user.records, start=1)
+        if self._current_user is not None:
+            enumeration = enumerate(self._current_user.records, start=1)
             for index, record in enumeration:
                 print(
                     f"{index} | {record.amount:+.2f} | {record.doc} | {record.created_at}"
                 )
-            print(f"余额:{self._now_user.balance:.2f}")
+            print(f"余额:{self._current_user.balance:.2f}")
 
     def _login(self):
         while True:
@@ -130,7 +130,7 @@ class Ledger:
                 else:
                     continue
             if self._is_password_correct(user):
-                self._now_user = user
+                self._current_user = user
                 print(f"欢迎回来,{user.name}")
                 break
             print("密码错误,已退回主界面")
@@ -147,7 +147,7 @@ class Ledger:
         password_hash = utils.hash_password(password)
         new_user = User(name, password_hash)
         self._users.append(new_user)
-        self._now_user = new_user
+        self._current_user = new_user
         print(f"欢迎,{new_user.name}")
 
     def _create(self):
@@ -240,7 +240,7 @@ class Ledger:
     def start(self):
         self._load()
         while self._is_running:
-            if self._now_user is None:
+            if self._current_user is None:
                 self._login_page()
                 choice = input("请输入选择:")
                 match choice:
@@ -270,7 +270,7 @@ class Ledger:
                         self._remove_user_record()
                         self.save()
                     case "4":
-                        self._now_user = None
+                        self._current_user = None
                     case "0":
                         self._quit()
                     case _:
