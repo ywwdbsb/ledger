@@ -133,6 +133,7 @@ class Ledger:
                 print(f"欢迎回来,{user.name}")
                 break
             print("密码错误,已退回主界面")
+            break
 
     def _create_user(self, name: str):
         while True:
@@ -178,7 +179,7 @@ class Ledger:
     def save(self) -> bool:
         # 先写入临时文件中 再存入 json
         # 不然写 json 时出错就炸了
-        tmp = DATA_FILE.with_suffix(".json.tmp")
+        tmp = DATA_FILE.with_suffix(".tmp.json")
         try:
             data = [asdict(user) for user in self._users]
             with open(tmp, "w", encoding="utf-8") as file:
@@ -212,12 +213,12 @@ class Ledger:
             print(f"警告: {DATA_FILE.name} 类型错误,无法读取")
             return
 
-        _users = []
+        self._users = []
         failed_times = 0
         for user_data in data:
             try:
                 user = User.from_dict(user_data)
-                _users.append(user)
+                self._users.append(user)
             except (ValueError, KeyError, InvalidOperation, TypeError) as error:
                 print(
                     f"警告: {DATA_FILE.name} 数据缺失或格式错误:{error},部分数据可能无法读取"
@@ -230,7 +231,7 @@ class Ledger:
             DATA_FILE.replace(backup)
             print(f"损坏数据已备份至{backup.name}")
         else:
-            print(f"成功从{DATA_FILE.name}中读取{len(_users)}条数据")
+            print(f"成功从{DATA_FILE.name}中读取{len(self._users)}条数据")
 
     def start(self):
         self._load()
