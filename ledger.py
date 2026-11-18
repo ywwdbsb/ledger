@@ -1,7 +1,7 @@
 """记账本 拥有不同用户"""
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -14,11 +14,11 @@ from models import User
 DATA_FILE = Path(__file__).resolve().with_name("data.json")
 
 
-@dataclass
 class Ledger:
-    _now_user: User | None = field(default=None, init=False)
-    _users: list[User] = field(default_factory=list, init=False)
-    _is_running: bool = field(default=True, init=False)
+    def __init__(self) -> None:
+        self._now_user: User | None = None
+        self._users: list[User] = []
+        self._is_running: bool = True
 
     def _get_user(self, name: str) -> User | None:
         for user in self._users:
