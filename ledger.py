@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -9,8 +10,8 @@ import utils
 from models import User
 
 # 适用 pathlib 获取绝对路径
-# 并将文件名替换 确保 ledger_data.json 在同级目录
-DATA_FILE = Path(__file__).with_name("ledger_data.json")
+# 并将文件名替换 确保 data.json 在同级目录
+DATA_FILE = Path(__file__).resolve().with_name("data.json")
 
 
 @dataclass
@@ -227,7 +228,10 @@ class Ledger:
 
         if failed_times:
             print(f"警告: {DATA_FILE.name}中共{failed_times}条数据损坏,无法读取")
-            backup = DATA_FILE.with_suffix(".corrupted.json")
+            backup_dir = DATA_FILE.with_name("backups")
+            backup_dir.mkdir(exist_ok=True)
+            name = f"data.corrupted-{datetime.now():%Y%m%d-%H%M%S}.json"
+            backup = backup_dir / name
             DATA_FILE.replace(backup)
             print(f"损坏数据已备份至{backup.name}")
         else:

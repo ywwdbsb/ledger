@@ -23,7 +23,7 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    """接收用户输入的密码与json中的狗屎比对"""
+    """接收用户输入的密码与json中的密文比对"""
 
     try:
         salt_hex, hash_hex = stored_hash.split("$")

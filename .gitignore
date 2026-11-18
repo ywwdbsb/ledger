@@ -1,6 +1,7 @@
 ledger_data.json
-test.py
+test/
 .vscode/
 .venv/
+backups/
 __pycache__/
 *.pyc
